@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.util.List;
 
 @Entity
 @Table(name = "page")
@@ -17,8 +18,9 @@ public class PageEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(name = "site_id")
-    private int siteId;
+    @ManyToOne
+    @JoinColumn(name = "site_id", nullable = false)
+    private SiteEntity site;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String path;
@@ -29,6 +31,17 @@ public class PageEntity {
     @Column(columnDefinition = "MEDIUMTEXT", nullable = false)
     private String content;
 
-    // TODO: 18.06.2023 прописать зависимость многие ко многим с таблицей лемма
-    // TODO: 18.06.2023 добавить конструктор
+    @ManyToMany
+    @JoinTable(name = "indx",
+            joinColumns = {@JoinColumn(name = "page_id")},
+            inverseJoinColumns = {@JoinColumn(name = "lemma_id")}
+    )
+    private List<LemmaEntity> lemmaEntityList;
+
+    public PageEntity(SiteEntity site, String path, int code, String content) {
+        this.site = site;
+        this.path = path;
+        this.code = code;
+        this.content = content;
+    }
 }

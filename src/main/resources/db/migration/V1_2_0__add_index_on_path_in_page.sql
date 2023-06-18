@@ -1,0 +1,1 @@
+CREATE INDEX path ON page (path (50));

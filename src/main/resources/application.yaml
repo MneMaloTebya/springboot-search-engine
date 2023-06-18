@@ -1,6 +1,15 @@
+indexing-settings:
+  sites:
+    - url: https://www.playback.ru/
+      name: PlayBack.Ru
+    - url: https://www.rosavillage.ru/
+      name: Rosa Village
+    - url: https://xn--80aeeirqv7i.xn--p1ai/
+      name: JumpWay
+
+
 server:
   port: 8080
-
 spring:
   datasource:
     username: user1
@@ -12,13 +21,7 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
       ddl-auto: update
-    show-sql: true
-
-indexing-settings:
-  sites:
-    - url: https://www.lenta.ru
-      name: Лента.ру
-    - url: https://www.skillbox.ru
-      name: Skillbox
-    - url: https://www.playback.ru
-      name: PlayBack.Ru
+    show-sql: false
+logging:
+  level:
+    searchengine: debug
