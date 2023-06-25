@@ -29,28 +29,22 @@ public class WebCrawler extends RecursiveTask<PageEntity> {
 
     @Override
     protected PageEntity compute() {
-
         if (siteEntity.getStatusType() == StatusType.FAILED) {
             return pageEntity;
         }
-
         Document document;
         try {
-            document = PageValidator.getDocument(siteEntity.getUrl().concat(pageEntity.getPath()));
+            document = MyConnectionAssistant.getDocument(siteEntity.getUrl().concat(pageEntity.getPath()));
         } catch (IOException ex) {
             pageEntity.setCode(404);
             return pageEntity;
         }
-
         pageEntity.setCode(document.connection().response().statusCode());
         pageEntity.setContent(document.outerHtml());
-
         List<WebCrawler> webCrawlerList = getUrlChildList(document);
-
-        for(WebCrawler webCrawler : webCrawlerList) {
+        for (WebCrawler webCrawler : webCrawlerList) {
             webCrawler.join();
         }
-
         synchronized (pageEntityList) {
             List<PageEntity> pagesToInsert = pageEntityList.stream().filter(p -> p.getCode() > 0).toList();
             if (pagesToInsert.size() > 500) {
@@ -66,26 +60,23 @@ public class WebCrawler extends RecursiveTask<PageEntity> {
         Elements elements = document.select("a[href~=^[^#?]+$]");
         for (Element element : elements) {
             String urlChild = element.attr("abs:href");
-
-//            String pathSiteChild = PageValidator.getPathSite(urlChild, siteEntity.getUrl());
-            String pathSiteChild = PageValidator.getPathFromUrl(urlChild);
-            if (pathSiteChild.isBlank()) {
+            String relativeUrl = MyConnectionAssistant.getPathSite(urlChild, siteEntity.getUrl());
+            if (urlChild.isBlank()) {
                 continue;
             }
-
-            PageEntity pageEntityChild;
+            PageEntity pageEntity;
             synchronized (pageEntityList) {
-                if (indexServiceImpl.getPageRepository().existsByPathAndSite(pathSiteChild, siteEntity)
-                        || pageEntityList.stream().anyMatch(p -> p.getPath().equals(pathSiteChild))) {
+                if (indexServiceImpl.getPageRepository().existsByPathAndSite(relativeUrl, siteEntity)
+                        || pageEntityList.stream().anyMatch(p -> p.getPath().equals(relativeUrl))) {
                     continue;
                 }
-                pageEntityChild = new PageEntity(siteEntity, pathSiteChild, 0, "");
-                pageEntityList.add(pageEntityChild);
+                pageEntity = new PageEntity(siteEntity, relativeUrl, 0, "");
+                pageEntityList.add(pageEntity);
             }
-
-            WebCrawler webCrawler = new WebCrawler(pageEntityChild, pageEntityList, indexServiceImpl);
+            WebCrawler webCrawler = new WebCrawler(pageEntity, pageEntityList, indexServiceImpl);
             webCrawler.fork();
             siteList.add(webCrawler);
+
         }
         return siteList;
     }

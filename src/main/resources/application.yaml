@@ -1,11 +1,11 @@
 indexing-settings:
   sites:
-    - url: https://www.playback.ru/
-      name: PlayBack.Ru
+#    - url: https://www.playback.ru/
+#      name: PlayBack.Ru
+    - url: https://volochek.life/
+      name: volochek
     - url: https://www.rosavillage.ru/
       name: Rosa Village
-    - url: https://xn--80aeeirqv7i.xn--p1ai/
-      name: JumpWay
 
 
 server:
@@ -21,7 +21,7 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
       ddl-auto: update
-    show-sql: false
+    show-sql: true
 logging:
   level:
     searchengine: debug

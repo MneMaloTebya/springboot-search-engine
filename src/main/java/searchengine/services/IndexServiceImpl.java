@@ -2,14 +2,15 @@ package searchengine.services;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import searchengine.PageValidator;
+import searchengine.MyConnectionAssistant;
 import searchengine.WebCrawler;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
+import searchengine.dto.response.ErrorResponse;
+import searchengine.dto.response.OkResponse;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 import searchengine.model.StatusType;
@@ -28,35 +29,28 @@ public class IndexServiceImpl implements IndexService {
     private final Map<SiteEntity, List<PageEntity>> sitesIndexing = Collections.synchronizedMap(new HashMap<>());
     private final String pageIndexing = "";
 
+    @Autowired
     @Getter
     private PageRepository pageRepository;
-    
+
+    @Autowired
     private SiteRepository siteRepository;
 
     @Override
     public ResponseEntity startIndexing() {
-
-        if (!sitesIndexing.isEmpty()) {
-            return ResponseEntity.ok(null);
-        }
-        if (!pageIndexing.isBlank()) {
-            return ResponseEntity.ok(null);
-        }
-        
-        for (Site site : sitesList.getSites()) {
-            startIndexSite(site);
-        }
-        
-        return null;
+        if (!sitesIndexing.isEmpty()) return ResponseEntity.ok(new ErrorResponse("Предыдущая индексация еще не завершена"));
+        if (!pageIndexing.isBlank()) return ResponseEntity.ok(new ErrorResponse("Индексация невозможна. Запущена индексация страницы"));
+        sitesList.getSites().forEach(this::startIndexSite);
+        return ResponseEntity.ok(new OkResponse());
     }
 
     private void startIndexSite(Site site) {
         new Thread(() -> {
             SiteEntity siteEntity = siteRepository.findFirstByName(site.getName());
-            String siteUrl = PageValidator.getHostFromUrl(site.getUrl());
+            String siteUrl = MyConnectionAssistant.getSiteUrl(site);
             if (siteEntity != null) {
                 deleteSiteEntity(siteEntity);
-                siteEntity.setUrl(PageValidator.getHostFromUrl(siteUrl));
+                siteEntity.setUrl(siteUrl);
             } else {
                 siteEntity = new SiteEntity(StatusType.INDEXING, LocalDateTime.now(), "", siteUrl, site.getName());
             }
@@ -70,10 +64,12 @@ public class IndexServiceImpl implements IndexService {
                 siteEntity.setStatusType(StatusType.INDEXED);
                 siteRepository.save(siteEntity);
             }
+            sitesIndexing.remove(siteEntity);
         }).start();
     }
 
     private void deleteSiteEntity(SiteEntity siteEntity) {
+        sitesIndexing.put(siteEntity, null);
         siteEntity.setStatusType(StatusType.INDEXING);
         siteRepository.save(siteEntity);
         pageRepository.deleteAllBySite(siteEntity);
@@ -85,7 +81,16 @@ public class IndexServiceImpl implements IndexService {
 
     @Override
     public ResponseEntity stopIndexing() {
-        return null;
+        if (sitesIndexing.isEmpty()) {
+            return ResponseEntity.ok(new ErrorResponse("Индексация не запущена"));
+        }
+        for (SiteEntity siteEntity : sitesIndexing.keySet()) {
+            siteEntity.setStatusType(StatusType.FAILED);
+            siteEntity.setLastError("Индексация остановлена");
+            siteEntity.setStatusTime(LocalDateTime.now());
+            siteRepository.save(siteEntity);
+        }
+        return ResponseEntity.ok(new OkResponse());
     }
 
     @Override

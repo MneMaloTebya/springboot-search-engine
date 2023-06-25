@@ -18,12 +18,12 @@ public class MyConnectionAssistant {
 
     public static String getPathSite(String url, String siteUrl) {
 
-        String urlWoWWW = url.replaceFirst("//www.", "//");
-        String siteUrlWoWWW = siteUrl.replaceFirst("//www.", "//");
-        if (!urlWoWWW.startsWith(siteUrlWoWWW)) {
+        String urlNoWWW = url.replaceFirst("//www.", "//");
+        String siteUrlNoWWW = siteUrl.replaceFirst("//www.", "//");
+        if (!urlNoWWW.startsWith(siteUrlNoWWW)) {
             return "";
         }
-        String pathSite = urlWoWWW.substring(siteUrlWoWWW.length());
+        String pathSite = urlNoWWW.substring(siteUrlNoWWW.length());
         if (!pathSite.startsWith("/")) {
             pathSite = "/" + pathSite;
         }
