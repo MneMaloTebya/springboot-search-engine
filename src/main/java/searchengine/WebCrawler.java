@@ -34,7 +34,7 @@ public class WebCrawler extends RecursiveTask<PageEntity> {
         }
         Document document;
         try {
-            document = MyConnectionAssistant.getDocument(siteEntity.getUrl().concat(pageEntity.getPath()));
+            document = MyConnector.getDocument(siteEntity.getUrl().concat(pageEntity.getPath()));
         } catch (IOException ex) {
             pageEntity.setCode(404);
             return pageEntity;
@@ -60,7 +60,7 @@ public class WebCrawler extends RecursiveTask<PageEntity> {
         Elements elements = document.select("a[href~=^[^#?]+$]");
         for (Element element : elements) {
             String urlChild = element.attr("abs:href");
-            String relativeUrl = MyConnectionAssistant.getPathSite(urlChild, siteEntity.getUrl());
+            String relativeUrl = Validator.getPathSite(urlChild, siteEntity.getUrl());
             if (urlChild.isBlank()) {
                 continue;
             }
