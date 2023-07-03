@@ -145,7 +145,7 @@ public class IndexServiceImpl implements IndexService {
         pageRepository.delete(pageEntity);
     }
 
-    private void insetAllData(List<PageEntity> pageEntityList, SiteEntity siteEntity) {
+    public void insetAllData(List<PageEntity> pageEntityList, SiteEntity siteEntity) {
 
         for (PageEntity pageEntity : pageEntityList) {
             if (pageEntity.getCode() >= 400) {
