@@ -28,7 +28,7 @@ import java.util.concurrent.ForkJoinPool;
 @Service
 @RequiredArgsConstructor
 public class IndexServiceImpl implements IndexService {
-    
+
     private final SitesList sitesList;
     private final Map<SiteEntity, List<PageEntity>> sitesIndexing = Collections.synchronizedMap(new HashMap<>());
     private String pageIndexing = "";
@@ -129,7 +129,7 @@ public class IndexServiceImpl implements IndexService {
         String pageUrl = Validator.getPathSite(url, siteUrl);
         int code = document.connection().response().statusCode();
         String content = document.outerHtml();
-        pageEntity = new PageEntity(siteEntity,  pageUrl, code, content);
+        pageEntity = new PageEntity(siteEntity, pageUrl, code, content);
         insetAllData(new ArrayList<>(List.of(pageEntity)), siteEntity);
         pageIndexing = "";
         return ResponseEntity.ok(new OkResponse());
@@ -146,7 +146,9 @@ public class IndexServiceImpl implements IndexService {
     }
 
     public void insetAllData(List<PageEntity> pageEntityList, SiteEntity siteEntity) {
-
+        List<LemmaEntity> lemmasToInsert = new ArrayList<>();
+        List<IndexEntity> indexesToInsert = new ArrayList<>();
+        List<LemmaEntity> lemmaEntityList = lemmaRepository.findAllBySite(siteEntity);
         for (PageEntity pageEntity : pageEntityList) {
             if (pageEntity.getCode() >= 400) {
                 continue;
@@ -155,29 +157,29 @@ public class IndexServiceImpl implements IndexService {
                 LemmaFinder lemmaFinder = LemmaFinder.getInstance();
                 Map<String, Integer> lemmas = lemmaFinder.collectLemmas(pageEntity.getContent());
                 lemmas.forEach((key, value) -> {
-                    LemmaEntity lemma = new LemmaEntity();
-                    IndexEntity index = new IndexEntity();
-                    LemmaEntity searchLemma = lemmaRepository.findByLemma(key);
-                    if (searchLemma == null) {
-                        lemma.setLemma(key);
-                        lemma.setFrequency(1);
-                    } else {
-                        lemma = searchLemma;
-                        lemma.setFrequency(searchLemma.getFrequency() + 1);
+                    LemmaEntity lemma = Validator.findLemmaInList(lemmasToInsert, key);
+                    boolean isLemmaInListToInsert = true;
+                    if (lemma == null) {
+                        lemma = Validator.findLemmaInList(lemmaEntityList, key);
+                        isLemmaInListToInsert = false;
                     }
-                    lemma.setSite(siteEntity);
-                    lemmaRepository.save(lemma);
-                    index.setLemma(lemma);
-                    index.setPage(pageEntity);
-                    index.setRank(value);
-                    indexRepository.save(index);
+                    if (lemma == null) {
+                        lemma = new LemmaEntity(siteEntity, key, 1);
+                    } else {
+                        lemma.setFrequency(lemma.getFrequency() + 1);
+                    }
+                    if (!isLemmaInListToInsert) {
+                        lemmasToInsert.add(lemma);
+                    }
+                    indexesToInsert.add(new IndexEntity(pageEntity, lemma, value));
                 });
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-
         }
         pageRepository.saveAll(pageEntityList);
+        lemmaRepository.saveAll(lemmasToInsert);
+        indexRepository.saveAll(indexesToInsert);
         siteEntity.setStatusTime(LocalDateTime.now());
         siteRepository.save(siteEntity);
     }

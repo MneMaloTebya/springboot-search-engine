@@ -10,6 +10,7 @@ import searchengine.dto.statistics.StatisticsData;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.dto.statistics.TotalStatistics;
 import searchengine.model.SiteEntity;
+import searchengine.model.StatusType;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
@@ -22,8 +23,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StatisticsServiceImpl implements StatisticsService {
 
-    private final SitesList sites;
-
     @Autowired
     private final PageRepository pageRepository;
 
@@ -35,34 +34,31 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public StatisticsResponse getStatistics() {
-
         TotalStatistics total = new TotalStatistics();
-        total.setSites(sites.getSites().size());
-        total.setIndexing(true);
+        total.setSites((int)siteRepository.count());
+        total.setIndexing(siteRepository.existsByStatusType(StatusType.INDEXING));
         List<DetailedStatisticsItem> detailed = new ArrayList<>();
-        List<Site> sitesList = sites.getSites();
-       for (Site site : sitesList) {
-           DetailedStatisticsItem item = new DetailedStatisticsItem();
-           item.setName(site.getName());
-           item.setUrl(site.getUrl());
-           SiteEntity siteEntity = siteRepository.findFirstByUrl(site.getUrl());
-           if (siteEntity != null) {
-               int pages = pageRepository.countBySite(siteEntity);
-               int lemmas = lemmaRepository.countBySite(siteEntity);
-               item.setPages(pages);
-               item.setLemmas(lemmas);
-               item.setStatus(siteEntity.getStatusType().toString());
-               if (siteEntity.getLastError() == null) {
-                   item.setError("При индексации ошибок не возникло");
-               } else {
-                   item.setError(siteEntity.getLastError());
-               }
-               item.setStatusTime(siteEntity.getStatusTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
-               total.setPages(total.getPages() + pages);
-               total.setLemmas(total.getLemmas() + lemmas);
-               detailed.add(item);
-           }
-       }
+        List<SiteEntity> siteEntities = siteRepository.findAll();
+        for (SiteEntity site : siteEntities) {
+            DetailedStatisticsItem item = new DetailedStatisticsItem();
+            item.setName(site.getName());
+            item.setUrl(site.getUrl());
+            SiteEntity siteEntity = siteRepository.findFirstByUrl(site.getUrl());
+            int pages = pageRepository.countBySite(siteEntity);
+            int lemmas = lemmaRepository.countBySite(siteEntity);
+            item.setPages(pages);
+            item.setLemmas(lemmas);
+            item.setStatus(siteEntity.getStatusType().toString());
+            if (siteEntity.getLastError() == null) {
+                item.setError("При индексации ошибок не возникло");
+            } else {
+                item.setError(siteEntity.getLastError());
+            }
+            item.setStatusTime(siteEntity.getStatusTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+            total.setPages(total.getPages() + pages);
+            total.setLemmas(total.getLemmas() + lemmas);
+            detailed.add(item);
+        }
         StatisticsResponse response = new StatisticsResponse();
         StatisticsData data = new StatisticsData();
         data.setTotal(total);

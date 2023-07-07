@@ -3,9 +3,12 @@ package searchengine;
 import org.jsoup.nodes.Document;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
+import searchengine.model.LemmaEntity;
+
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
 
 public class Validator {
 
@@ -49,5 +52,13 @@ public class Validator {
             }
         }
         return false;
+    }
+
+    public static LemmaEntity findLemmaInList(List<LemmaEntity> lemmaList, String lemma) {
+        return lemmaList
+                .stream()
+                .filter(l -> l.getLemma().equals(lemma))
+                .findFirst()
+                .orElse(null);
     }
 }
