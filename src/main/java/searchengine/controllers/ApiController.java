@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexService;
+import searchengine.services.SearchService;
 import searchengine.services.StatisticsService;
 
 @RestController
@@ -13,11 +14,13 @@ public class ApiController {
 
     private final StatisticsService statisticsService;
     private final IndexService indexService;
+    private final SearchService searchService;
 
     @Autowired
-    public ApiController(StatisticsService statisticsService, IndexService indexService) {
+    public ApiController(StatisticsService statisticsService, IndexService indexService, SearchService searchService) {
         this.statisticsService = statisticsService;
         this.indexService = indexService;
+        this.searchService = searchService;
     }
 
     @GetMapping("/statistics")
@@ -38,5 +41,10 @@ public class ApiController {
     @PostMapping("/indexPage")
     public ResponseEntity indexPage(@RequestParam(name = "url") String url) {
         return indexService.indexPage(url);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity search(@RequestParam String query, String siteUrl, int offset, int limit) {
+        return searchService.search(query, siteUrl, offset, limit);
     }
 }
