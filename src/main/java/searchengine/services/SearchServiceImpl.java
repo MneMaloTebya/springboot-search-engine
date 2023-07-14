@@ -10,6 +10,7 @@ import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 import searchengine.model.StatusType;
+import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
@@ -28,6 +29,9 @@ public class SearchServiceImpl implements SearchService {
 
     @Autowired
     private PageRepository pageRepository;
+
+    @Autowired
+    private IndexRepository indexRepository;
 
     private Set<String> lemmasQuery;
 
@@ -88,9 +92,25 @@ public class SearchServiceImpl implements SearchService {
         if (sortedLemmas.isEmpty()) {
             return new ArrayList<>();
         }
-
-
-        return null;
+        String lemma = sortedLemmas.get(0).getLemma();
+        List<PageEntity> pageEntityList;
+        if (siteEntity == null) {
+            pageEntityList = pageRepository.findAllByLemma(lemma, PageRequest.of(0, 500));
+        } else {
+            pageEntityList = pageRepository.findAllByLemmaAndSite(lemma, siteEntity, PageRequest.of(0, 500));
+        }
+        for (int i = 0; i < sortedLemmas.size(); i++) {
+            int pageIndex = 0;
+            lemma = sortedLemmas.get(i).getLemma();
+            while (pageIndex < pageEntityList.size()) {
+                if (indexRepository.existsByLemma_LemmaAndPage(lemma, pageEntityList.get(pageIndex))) {
+                    pageIndex++;
+                } else {
+                    pageEntityList.remove(pageIndex);
+                }
+            }
+        }
+        return pageEntityList;
     }
 
 }
