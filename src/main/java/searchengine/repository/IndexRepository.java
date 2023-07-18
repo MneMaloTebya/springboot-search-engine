@@ -12,4 +12,5 @@ public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
     void deleteAllByPage(PageEntity pageEntity);
     List<IndexEntity> findAllByPage(PageEntity pageEntity);
     boolean existsByLemma_LemmaAndPage(String lemma, PageEntity pageEntity);
+    IndexEntity findFirstByLemma_LemmaAndPage(String lemma, PageEntity pageEntity);
 }

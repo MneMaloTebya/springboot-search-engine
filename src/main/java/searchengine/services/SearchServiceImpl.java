@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.LemmaFinder;
 import searchengine.dto.response.ErrorResponse;
+import searchengine.dto.search.PageInfo;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
@@ -34,6 +35,7 @@ public class SearchServiceImpl implements SearchService {
     private IndexRepository indexRepository;
 
     private Set<String> lemmasQuery;
+    private final List<PageInfo> pageInfoList = new ArrayList<>();
 
     @Override
     public ResponseEntity search(String query, String siteUrl, int offset, int limit) {
@@ -46,7 +48,7 @@ public class SearchServiceImpl implements SearchService {
         }
         lemmasQuery = replaceQuery(query);
         List<LemmaEntity> sortedLemmas = dropPopularLemmasAndSort(lemmasQuery, siteEntity);
-
+        List<PageEntity> pageEntityList = getPages(sortedLemmas, siteEntity);
 
 
         return null;
@@ -80,7 +82,6 @@ public class SearchServiceImpl implements SearchService {
                 pageCountByLemma = pageRepository.findAllByLemmaAndSite(lemma, siteEntity, PageRequest.of(0, 500)).size();
                 lemmaEntity = lemmaRepository.findFirstByLemmaAndSite(lemma, siteEntity);
             }
-
             if (totalPageCountBySite / pageCountByLemma >= 5 && lemma != null) { // TODO: 13.07.2023 тестовое значение
                 lemmaEntityList.add(lemmaEntity);
             }
@@ -99,9 +100,9 @@ public class SearchServiceImpl implements SearchService {
         } else {
             pageEntityList = pageRepository.findAllByLemmaAndSite(lemma, siteEntity, PageRequest.of(0, 500));
         }
-        for (int i = 0; i < sortedLemmas.size(); i++) {
+        for (LemmaEntity sortedLemma : sortedLemmas) {
             int pageIndex = 0;
-            lemma = sortedLemmas.get(i).getLemma();
+            lemma = sortedLemma.getLemma();
             while (pageIndex < pageEntityList.size()) {
                 if (indexRepository.existsByLemma_LemmaAndPage(lemma, pageEntityList.get(pageIndex))) {
                     pageIndex++;
@@ -111,6 +112,34 @@ public class SearchServiceImpl implements SearchService {
             }
         }
         return pageEntityList;
+    }
+
+    private float calculateAbsRelevance(PageEntity pageEntity, List<LemmaEntity> sortedLemmas) {
+        float rABS = 0.0f;
+        for (LemmaEntity lemmaEntity : sortedLemmas) {
+            rABS = rABS + indexRepository.findFirstByLemma_LemmaAndPage(lemmaEntity.getLemma(), pageEntity).getRank();
+        }
+        return rABS;
+    }
+
+    private void calculateRltRelevance() {
+        pageInfoList.sort(Comparator.comparing(PageInfo::getRelevance).reversed());
+        float rRLT = pageInfoList.get(0).getRelevance();
+        pageInfoList.forEach(p -> p.setRelevance(p.getRelevance() / rRLT));
+    }
+
+    private void fillPageInfo(List<LemmaEntity> sortedLemmas, List<PageEntity> pageEntityList) {
+        pageInfoList.clear();
+        float rABS = 0.0f;
+        for (PageEntity pageEntity : pageEntityList) {
+            rABS = calculateAbsRelevance(pageEntity, sortedLemmas);
+            PageInfo pageInfo = new PageInfo();
+            pageInfo.setPageEntity(pageEntity);
+            pageInfo.setRelevance(rABS);
+        }
+        if (pageInfoList.size() > 0) {
+            calculateRltRelevance();
+        }
     }
 
 }
