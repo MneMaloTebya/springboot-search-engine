@@ -26,20 +26,20 @@ import java.util.*;
 @Service
 public class SearchServiceImpl implements SearchService {
 
-    @Autowired
-    private LemmaRepository lemmaRepository;
-
-    @Autowired
-    private SiteRepository siteRepository;
-
-    @Autowired
-    private PageRepository pageRepository;
-
-    @Autowired
-    private IndexRepository indexRepository;
-
+    private final LemmaRepository lemmaRepository;
+    private final SiteRepository siteRepository;
+    private final PageRepository pageRepository;
+    private final IndexRepository indexRepository;
     private final List<PageInfo> pageInfoList = new ArrayList<>();
     private Set<String> lemmasQuery;
+
+    @Autowired
+    public SearchServiceImpl(LemmaRepository lemmaRepository, SiteRepository siteRepository, PageRepository pageRepository, IndexRepository indexRepository) {
+        this.lemmaRepository = lemmaRepository;
+        this.siteRepository = siteRepository;
+        this.pageRepository = pageRepository;
+        this.indexRepository = indexRepository;
+    }
 
     @Override
     public ResponseEntity search(String query, String siteUrl, int offset, int limit) {
@@ -47,12 +47,17 @@ public class SearchServiceImpl implements SearchService {
             return ResponseEntity.ok(new ErrorResponse("Пустой запрос"));
         }
         SiteEntity siteEntity = siteRepository.findFirstByUrl(siteUrl);
-        if (siteEntity == null || siteEntity.getStatusType() == StatusType.INDEXING) {
-            return ResponseEntity.ok(new ErrorResponse("Сайт не проиндексирован"));
+        if (siteUrl != null && (siteEntity == null || siteEntity.getStatusType() == StatusType.INDEXING) ||
+                siteUrl == null && siteRepository.existsByStatusType(StatusType.INDEXING)) {
+            return ResponseEntity.ok(new ErrorResponse("Индексация не завершена"));
         }
         lemmasQuery = replaceQuery(query);
         List<LemmaEntity> sortedLemmas = dropPopularLemmasAndSort(lemmasQuery, siteEntity);
         List<PageEntity> pageEntityList = getPages(sortedLemmas, siteEntity);
+
+        if (sortedLemmas.isEmpty() && pageEntityList.isEmpty()) {
+            return ResponseEntity.ok(new ErrorResponse("Поиск не дал результатов"));
+        }
         fillPageInfo(sortedLemmas, pageEntityList);
 
         SearchResponse response = new SearchResponse();
@@ -74,6 +79,7 @@ public class SearchServiceImpl implements SearchService {
     private List<LemmaEntity> dropPopularLemmasAndSort(Set<String> lemmas, SiteEntity siteEntity) {
         List<LemmaEntity> lemmaEntityList = new ArrayList<>();
         int totalPageCountBySite = pageRepository.countBySite(siteEntity);
+
         for (String lemma : lemmas) {
             int pageCountByLemma;
             LemmaEntity lemmaEntity;
@@ -89,6 +95,10 @@ public class SearchServiceImpl implements SearchService {
             } else {
                 pageCountByLemma = pageRepository.findAllByLemmaAndSite(lemma, siteEntity, PageRequest.of(0, 500)).size();
                 lemmaEntity = lemmaRepository.findFirstByLemmaAndSite(lemma, siteEntity);
+
+            }
+            if (pageCountByLemma == 0) {
+                return null;
             }
             if (totalPageCountBySite / pageCountByLemma >= 5 && lemma != null) { // TODO: 13.07.2023 тестовое значение
                 lemmaEntityList.add(lemmaEntity);

@@ -24,7 +24,7 @@ public interface PageRepository extends JpaRepository<PageEntity, Integer> {
             "JOIN IndexEntity i ON p = i.page \n" +
             "JOIN LemmaEntity l ON l = i.lemma \n" +
             "JOIN SiteEntity s ON s = p.site \n" +
-            "WHERE l.lemma = :lemma AND s = :siteData")
+            "WHERE l.lemma = :lemma AND s = :siteEntity")
     List<PageEntity> findAllByLemmaAndSite(String lemma, SiteEntity siteEntity, Pageable pageable);
 
     @Query(value = "SELECT p FROM PageEntity p\n" +
