@@ -60,12 +60,6 @@ public class LemmaFinder {
         return lemmas;
     }
 
-    /**
-     * метод возвращает сет лемм
-     *
-     * @param text текст из которого собираем все леммы
-     * @return набор уникальных лемм найденных в тексте
-     */
     public Set<String> getLemmaSet(String text) {
         String[] textArray = arrayContainsRussianWords(text);
         Set<String> lemmaSet = new HashSet<>();
@@ -85,7 +79,6 @@ public class LemmaFinder {
         return wordBaseForms.stream().anyMatch(this::hasParticleProperty);
     }
 
-    // проверяем является ли слово служебной частью
     private boolean hasParticleProperty(String wordBase) {
         for (String property : particlesNames) {
             if (wordBase.toUpperCase().contains(property)) {
@@ -95,15 +88,13 @@ public class LemmaFinder {
         return false;
     }
 
-    //возвращаем массив из текста
     private String[] arrayContainsRussianWords(String text) {
-        return text.toLowerCase(Locale.ROOT) //возвращаем строку, преобразованную в нижний регистр
-                .replaceAll("([^а-я\\s])", " ") // заменяем все "не слова" на пробелы
-                .trim()// удаляем все пробелы в начале и конце строки
-                .split("\\s+");//разбиваем строку в массив по пробелам
+        return text.toLowerCase(Locale.ROOT)
+                .replaceAll("([^а-я\\s])", " ")
+                .trim()
+                .split("\\s+");
     }
 
-    // проверяем не является ли слово междометием, предлогом или союзом (служебной частью)
     private boolean isCorrectWordForm(String word) {
         List<String> wordInfo = luceneMorphology.getMorphInfo(word);
         for (String morphInfo : wordInfo) {

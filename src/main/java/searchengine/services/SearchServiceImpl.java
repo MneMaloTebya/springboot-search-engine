@@ -1,12 +1,16 @@
 package searchengine.services;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.LemmaFinder;
+import searchengine.Validator;
 import searchengine.dto.response.ErrorResponse;
 import searchengine.dto.search.PageInfo;
+import searchengine.dto.search.SearchResponse;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
@@ -34,8 +38,8 @@ public class SearchServiceImpl implements SearchService {
     @Autowired
     private IndexRepository indexRepository;
 
-    private Set<String> lemmasQuery;
     private final List<PageInfo> pageInfoList = new ArrayList<>();
+    private Set<String> lemmasQuery;
 
     @Override
     public ResponseEntity search(String query, String siteUrl, int offset, int limit) {
@@ -49,9 +53,13 @@ public class SearchServiceImpl implements SearchService {
         lemmasQuery = replaceQuery(query);
         List<LemmaEntity> sortedLemmas = dropPopularLemmasAndSort(lemmasQuery, siteEntity);
         List<PageEntity> pageEntityList = getPages(sortedLemmas, siteEntity);
+        fillPageInfo(sortedLemmas, pageEntityList);
 
-
-        return null;
+        SearchResponse response = new SearchResponse();
+        response.setResult(true);
+        response.setCount(pageEntityList.size());
+        response.setData(getResponse(offset, Math.max(pageInfoList.size(), offset + limit)));
+        return ResponseEntity.ok(response);
     }
 
     private Set<String> replaceQuery(String query) {
@@ -114,6 +122,20 @@ public class SearchServiceImpl implements SearchService {
         return pageEntityList;
     }
 
+    private List<PageInfo> getResponse(int from, int to) {
+        List<PageInfo> pageInfos = pageInfoList.subList(from, to);
+        for (PageInfo pageInfo : pageInfos) {
+            PageEntity pageEntity = pageInfo.getPageEntity();
+            pageInfo.setSite(pageEntity.getSite().getUrl());
+            pageInfo.setSiteName(pageEntity.getSite().getName());
+            pageInfo.setUri(pageEntity.getPath());
+            pageInfo.setTitle(Jsoup.parse(pageEntity.getContent()).title());
+            pageInfo.setSnippet(getSnippet(pageEntity, lemmasQuery));
+
+        }
+        return pageInfos;
+    }
+
     private float calculateAbsRelevance(PageEntity pageEntity, List<LemmaEntity> sortedLemmas) {
         float rABS = 0.0f;
         for (LemmaEntity lemmaEntity : sortedLemmas) {
@@ -130,7 +152,7 @@ public class SearchServiceImpl implements SearchService {
 
     private void fillPageInfo(List<LemmaEntity> sortedLemmas, List<PageEntity> pageEntityList) {
         pageInfoList.clear();
-        float rABS = 0.0f;
+        float rABS;
         for (PageEntity pageEntity : pageEntityList) {
             rABS = calculateAbsRelevance(pageEntity, sortedLemmas);
             PageInfo pageInfo = new PageInfo();
@@ -142,4 +164,20 @@ public class SearchServiceImpl implements SearchService {
         }
     }
 
+    private String getSnippet(PageEntity pageEntity, Set<String> lemmasQuery) {
+        StringBuilder builder = new StringBuilder();
+        String content = pageEntity.getContent();
+        Document document = Jsoup.parse(content);
+        String text = document.select("title").text()
+                .concat(document.select("body").text());
+
+        List<String> rightSentences = Validator.getRightSentences(Validator.splitTextIntoSentences(text), lemmasQuery);
+        for (String lemma : lemmasQuery) {
+            for (String sentence : rightSentences) {
+                int[] indexes = Validator.findLemmaIndex(lemma, sentence);
+                builder.append(Validator.getFormattedSentence(indexes, sentence, lemma)).append("\n");
+            }
+        }
+        return builder.toString();
+    }
 }
