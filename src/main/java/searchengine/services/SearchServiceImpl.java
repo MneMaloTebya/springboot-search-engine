@@ -53,13 +53,11 @@ public class SearchServiceImpl implements SearchService {
         }
         lemmasQuery = replaceQuery(query);
         List<LemmaEntity> sortedLemmas = dropPopularLemmasAndSort(lemmasQuery, siteEntity);
-        List<PageEntity> pageEntityList = getPages(sortedLemmas, siteEntity);
-
-        if (sortedLemmas.isEmpty() && pageEntityList.isEmpty()) {
+        if (sortedLemmas.isEmpty()) {
             return ResponseEntity.ok(new ErrorResponse("Поиск не дал результатов"));
         }
+        List<PageEntity> pageEntityList = getPages(sortedLemmas, siteEntity);
         fillPageInfo(sortedLemmas, pageEntityList);
-
         SearchResponse response = new SearchResponse();
         response.setResult(true);
         response.setCount(pageEntityList.size());
@@ -78,12 +76,12 @@ public class SearchServiceImpl implements SearchService {
 
     private List<LemmaEntity> dropPopularLemmasAndSort(Set<String> lemmas, SiteEntity siteEntity) {
         List<LemmaEntity> lemmaEntityList = new ArrayList<>();
-        int totalPageCountBySite = pageRepository.countBySite(siteEntity);
-
         for (String lemma : lemmas) {
             int pageCountByLemma;
+            int totalPageCount;
             LemmaEntity lemmaEntity;
             if (siteEntity == null) {
+                totalPageCount = pageRepository.findAll().size();
                 pageCountByLemma = pageRepository.findAllByLemma(lemma, PageRequest.of(0, 500)).size();
                 List<LemmaEntity> lemmaEntities = lemmaRepository.findAllByLemma(lemma);
                 if (!lemmaEntities.isEmpty()) {
@@ -93,14 +91,14 @@ public class SearchServiceImpl implements SearchService {
                     lemmaEntity = null;
                 }
             } else {
+                totalPageCount = pageRepository.countBySite(siteEntity);
                 pageCountByLemma = pageRepository.findAllByLemmaAndSite(lemma, siteEntity, PageRequest.of(0, 500)).size();
                 lemmaEntity = lemmaRepository.findFirstByLemmaAndSite(lemma, siteEntity);
-
             }
             if (pageCountByLemma == 0) {
                 return null;
             }
-            if (totalPageCountBySite / pageCountByLemma >= 5 && lemma != null) { // TODO: 13.07.2023 тестовое значение
+            if (totalPageCount / pageCountByLemma >= 5 && lemma != null) {
                 lemmaEntityList.add(lemmaEntity);
             }
         }
@@ -168,19 +166,19 @@ public class SearchServiceImpl implements SearchService {
             PageInfo pageInfo = new PageInfo();
             pageInfo.setPageEntity(pageEntity);
             pageInfo.setRelevance(rABS);
+            pageInfoList.add(pageInfo);
         }
         if (pageInfoList.size() > 0) {
             calculateRltRelevance();
         }
     }
 
+    // TODO: 13.08.2023 нужно рефакторить
     private String getSnippet(PageEntity pageEntity, Set<String> lemmasQuery) {
         StringBuilder builder = new StringBuilder();
         String content = pageEntity.getContent();
         Document document = Jsoup.parse(content);
-        String text = document.select("title").text()
-                .concat(document.select("body").text());
-
+        String text = document.select("body").text();
         List<String> rightSentences = Validator.getRightSentences(Validator.splitTextIntoSentences(text), lemmasQuery);
         for (String lemma : lemmasQuery) {
             for (String sentence : rightSentences) {

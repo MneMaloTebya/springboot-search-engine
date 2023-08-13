@@ -1,15 +1,10 @@
 indexing-settings:
   sites:
-#    - url: https://www.playback.ru/
-#      name: PlayBack.Ru
-#    - url: https://volochek.life/
-#      name: volochek
-#    - url: https://www.rosavillage.ru/
-#      name: Rosa Village
+
+    - url: https://www.playback.ru/
+      name: PlayBack.Ru
     - url: https://radiomv.ru/
       name: radiomv
-    - url: https://www.svetlovka.ru/
-      name: svetlovka
 
 
 server:
