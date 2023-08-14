@@ -60,7 +60,7 @@ public class WebCrawler extends RecursiveTask<PageEntity> {
         Elements elements = document.select("a[href~=^[^#?]+$]");
         for (Element element : elements) {
             String urlChild = element.attr("abs:href");
-            String relativeUrl = Validator.getPathSite(urlChild, siteEntity.getUrl());
+            String relativeUrl = MyAssistant.getPathSite(urlChild, siteEntity.getUrl());
             if (urlChild.isBlank()) {
                 continue;
             }

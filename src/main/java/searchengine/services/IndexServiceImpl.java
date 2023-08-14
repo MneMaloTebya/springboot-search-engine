@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.LemmaFinder;
 import searchengine.MyConnector;
-import searchengine.Validator;
+import searchengine.MyAssistant;
 import searchengine.WebCrawler;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
@@ -59,7 +59,7 @@ public class IndexServiceImpl implements IndexService {
     private void startIndexSite(Site site) {
         new Thread(() -> {
             SiteEntity siteEntity = siteRepository.findFirstByName(site.getName());
-            String siteUrl = Validator.getSiteUrl(site);
+            String siteUrl = MyAssistant.getSiteUrl(site);
             if (siteEntity != null) {
                 deleteSiteEntity(siteEntity);
                 siteEntity.setUrl(siteUrl);
@@ -108,7 +108,7 @@ public class IndexServiceImpl implements IndexService {
     public ResponseEntity indexPage(String url) {
         if (!sitesIndexing.isEmpty())
             return ResponseEntity.ok(new ErrorResponse("Предыдущая индексация еще не завершена"));
-        if (!Validator.urlIsLocatedConfig(url, sitesList))
+        if (!MyAssistant.urlIsLocatedConfig(url, sitesList))
             return ResponseEntity.ok(new ErrorResponse("Данная страница находится за пределами сайтов, указанных в конфигурационном файле"));
         Document document;
         try {
@@ -120,13 +120,13 @@ public class IndexServiceImpl implements IndexService {
             return ResponseEntity.ok(new ErrorResponse("Эта станица уже индексируется"));
         }
         pageIndexing = document.location();
-        String siteUrl = Validator.getSiteUrl(url);
+        String siteUrl = MyAssistant.getSiteUrl(url);
         SiteEntity siteEntity = siteRepository.findFirstByUrl(siteUrl);
-        PageEntity pageEntity = pageRepository.findByPathAndSite(Validator.getPathSite(url, siteEntity.getUrl()), siteEntity);
+        PageEntity pageEntity = pageRepository.findByPathAndSite(MyAssistant.getPathSite(url, siteEntity.getUrl()), siteEntity);
         if (pageEntity != null) {
             deletePageData(pageEntity, siteEntity);
         }
-        String pageUrl = Validator.getPathSite(url, siteUrl);
+        String pageUrl = MyAssistant.getPathSite(url, siteUrl);
         int code = document.connection().response().statusCode();
         String content = document.outerHtml();
         pageEntity = new PageEntity(siteEntity, pageUrl, code, content);
@@ -157,10 +157,10 @@ public class IndexServiceImpl implements IndexService {
                 LemmaFinder lemmaFinder = LemmaFinder.getInstance();
                 Map<String, Integer> lemmas = lemmaFinder.collectLemmas(pageEntity.getContent());
                 lemmas.forEach((key, value) -> {
-                    LemmaEntity lemma = Validator.findLemmaInList(lemmasToInsert, key);
+                    LemmaEntity lemma = MyAssistant.findLemmaInList(lemmasToInsert, key);
                     boolean isLemmaInListToInsert = true;
                     if (lemma == null) {
-                        lemma = Validator.findLemmaInList(lemmaEntityList, key);
+                        lemma = MyAssistant.findLemmaInList(lemmaEntityList, key);
                         isLemmaInListToInsert = false;
                     }
                     if (lemma == null) {

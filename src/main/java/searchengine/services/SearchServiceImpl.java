@@ -7,8 +7,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.LemmaFinder;
-import searchengine.Validator;
+import searchengine.MyAssistant;
 import searchengine.dto.response.ErrorResponse;
+import searchengine.dto.search.LemmaIndex;
 import searchengine.dto.search.PageInfo;
 import searchengine.dto.search.SearchResponse;
 import searchengine.model.LemmaEntity;
@@ -53,7 +54,7 @@ public class SearchServiceImpl implements SearchService {
         }
         lemmasQuery = replaceQuery(query);
         List<LemmaEntity> sortedLemmas = dropPopularLemmasAndSort(lemmasQuery, siteEntity);
-        if (sortedLemmas.isEmpty()) {
+        if (sortedLemmas == null) {
             return ResponseEntity.ok(new ErrorResponse("Поиск не дал результатов"));
         }
         List<PageEntity> pageEntityList = getPages(sortedLemmas, siteEntity);
@@ -173,17 +174,25 @@ public class SearchServiceImpl implements SearchService {
         }
     }
 
-    // TODO: 13.08.2023 нужно рефакторить
     private String getSnippet(PageEntity pageEntity, Set<String> lemmasQuery) {
         StringBuilder builder = new StringBuilder();
         String content = pageEntity.getContent();
         Document document = Jsoup.parse(content);
-        String text = document.select("body").text();
-        List<String> rightSentences = Validator.getRightSentences(Validator.splitTextIntoSentences(text), lemmasQuery);
+        String clearText = document.select("body").text();
+        List<LemmaIndex> lemmaIndices = new ArrayList<>();
         for (String lemma : lemmasQuery) {
-            for (String sentence : rightSentences) {
-                int[] indexes = Validator.findLemmaIndex(lemma, sentence);
-                builder.append(Validator.getFormattedSentence(indexes, sentence, lemma)).append("\n");
+            lemmaIndices.add(LemmaIndex.findLemmaIndex(lemma, clearText));
+        }
+        lemmaIndices.sort(Comparator.comparing(LemmaIndex::getFrom));
+        for (LemmaIndex lemmaIndex : lemmaIndices) {
+            if(lemmaIndex.getFrom() != -1) {
+                builder.append("...");
+                String firstFragment = clearText.substring(lemmaIndex.getFrom() - 20, lemmaIndex.getFrom()) + " ";
+                String secondFragment = "<b>" + lemmaIndex.getLemma() + "</b>";
+                String lustFragment = " " + clearText.substring(lemmaIndex.getTo(), lemmaIndex.getTo() + 50) ;
+                builder.append(firstFragment).append(secondFragment).append(lustFragment).append("\n");
+            } else {
+                builder.append("|");
             }
         }
         return builder.toString();
