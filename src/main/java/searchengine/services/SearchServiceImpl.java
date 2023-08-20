@@ -189,7 +189,7 @@ public class SearchServiceImpl implements SearchService {
                 builder.append("...");
                 String firstFragment = clearText.substring(lemmaIndex.getFrom() - 20, lemmaIndex.getFrom()) + " ";
                 String secondFragment = "<b>" + lemmaIndex.getLemma() + "</b>";
-                String lustFragment = " " + clearText.substring(lemmaIndex.getTo(), lemmaIndex.getTo() + 50) ;
+                String lustFragment = clearText.substring(lemmaIndex.getTo(), lemmaIndex.getTo() + 50) ;
                 builder.append(firstFragment).append(secondFragment).append(lustFragment).append("\n");
             } else {
                 builder.append("|");
